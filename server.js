@@ -1,214 +1,458 @@
 const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
-const axios = require('axios');
 const cors = require('cors');
 const bodyParser = require('body-parser');
-const search = require('yt-search');
+const axios = require('axios');
+const session = require('express-session');
+const bcrypt = require('bcrypt');
 require('dotenv').config();
 
 const app = express();
+const OMDB_API_KEY = process.env.OMDB_API_KEY;
+
+// Middleware
 app.use(cors());
 app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static('public'));
 
-const OMDB_API_KEY = process.env.OMDB_API_KEY;
-const db = new sqlite3.Database('./movies.db');
+// Session setup
+app.use(session({
+  secret: 'your-secret-key-change-this',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { maxAge: 1000 * 60 * 60 * 24 } // 24 hours
+}));
 
+// Initialize SQLite Database
+const db = new sqlite3.Database('./movies.db', (err) => {
+  if (err) console.error('Database error:', err);
+  else console.log('✅ Connected to SQLite database');
+});
+
+// Create Users Table
+db.run(`
+  CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT UNIQUE NOT NULL,
+    email TEXT UNIQUE NOT NULL,
+    password TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`);
+
+// Create Movies Table (with user_id)
 db.run(`
   CREATE TABLE IF NOT EXISTS movies (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
     title TEXT NOT NULL,
-    imdbId TEXT,
-    posterUrl TEXT,
+    genres TEXT,
     director TEXT,
     mainCharacter TEXT,
-    genres TEXT,
-    plot TEXT,
-    year TEXT,
-    imdbRating TEXT,
+    year INTEGER,
+    imdbRating REAL,
     runtime TEXT,
+    posterUrl TEXT,
+    plot TEXT,
     rating INTEGER,
     userNotes TEXT,
-    dateAdded TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
   )
 `);
 
+// Create Watchlist Table (with user_id)
 db.run(`
   CREATE TABLE IF NOT EXISTS watchlist (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
     title TEXT NOT NULL,
-    imdbId TEXT,
-    posterUrl TEXT,
+    genres TEXT,
     director TEXT,
     mainCharacter TEXT,
-    genres TEXT,
-    plot TEXT,
-    year TEXT,
-    imdbRating TEXT,
+    year INTEGER,
+    imdbRating REAL,
     runtime TEXT,
-    dateAdded TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    posterUrl TEXT,
+    plot TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
   )
 `);
 
-async function fetchMovieData(movieName) {
-  try {
-    const response = await axios.get('https://www.omdbapi.com/', {
-      params: { apikey: OMDB_API_KEY, t: movieName, type: 'movie' },
-    });
-    if (response.data.Response === 'False') return null;
-    return {
-      title: response.data.Title,
-      imdbId: response.data.imdbID,
-      posterUrl: response.data.Poster,
-      director: response.data.Director,
-      mainCharacter: response.data.Actors.split(',')[0].trim(),
-      genres: response.data.Genre,
-      plot: response.data.Plot || 'No plot available',
-      year: response.data.Year || 'N/A',
-      imdbRating: response.data.imdbRating || 'N/A',
-      runtime: response.data.Runtime || 'N/A',
-    };
-  } catch (error) {
-    console.error('Error fetching movie:', error);
-    return null;
+// ===== AUTHENTICATION ROUTES =====
+
+// Sign Up
+app.post('/auth/signup', async (req, res) => {
+  const { username, email, password } = req.body;
+
+  if (!username || !email || !password) {
+    return res.status(400).json({ error: 'All fields required' });
   }
-}
 
-// Add movie to watched
-app.post('/api/movies', async (req, res) => {
-  const { movieName, rating, notes } = req.body;
-  const movieData = await fetchMovieData(movieName);
-  if (!movieData) return res.status(404).json({ error: 'Movie not found' });
+  if (password.length < 6) {
+    return res.status(400).json({ error: 'Password must be at least 6 characters' });
+  }
 
-  db.run(
-    `INSERT INTO movies (title, imdbId, posterUrl, director, mainCharacter, genres, plot, year, imdbRating, runtime, rating, userNotes)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [movieData.title, movieData.imdbId, movieData.posterUrl, movieData.director, movieData.mainCharacter, movieData.genres, movieData.plot, movieData.year, movieData.imdbRating, movieData.runtime, rating, notes],
-    function (err) {
-      if (err) return res.status(500).json({ error: err.message });
-      res.json({ id: this.lastID, ...movieData, rating, notes });
-    }
-  );
-});
+  try {
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-app.get('/api/movies', (req, res) => {
-  db.all(`SELECT * FROM movies ORDER BY dateAdded DESC`, [], (err, rows) => {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json(rows);
-  });
-});
-
-app.delete('/api/movies/:id', (req, res) => {
-  db.run(`DELETE FROM movies WHERE id = ?`, [req.params.id], function (err) {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json({ success: true });
-  });
-});
-
-app.put('/api/movies/:id', (req, res) => {
-  const { rating, userNotes } = req.body;
-  db.run(
-    `UPDATE movies SET rating = ?, userNotes = ? WHERE id = ?`,
-    [rating, userNotes, req.params.id],
-    (err) => {
-      if (err) return res.status(500).json({ error: err.message });
-      res.json({ success: true });
-    }
-  );
-});
-
-// Watchlist endpoints
-app.post('/api/watchlist', async (req, res) => {
-  const { movieName } = req.body;
-  const movieData = await fetchMovieData(movieName);
-  if (!movieData) return res.status(404).json({ error: 'Movie not found' });
-
-  db.run(
-    `INSERT INTO watchlist (title, imdbId, posterUrl, director, mainCharacter, genres, plot, year, imdbRating, runtime)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [movieData.title, movieData.imdbId, movieData.posterUrl, movieData.director, movieData.mainCharacter, movieData.genres, movieData.plot, movieData.year, movieData.imdbRating, movieData.runtime],
-    function (err) {
-      if (err) return res.status(500).json({ error: err.message });
-      res.json({ id: this.lastID, ...movieData });
-    }
-  );
-});
-
-app.get('/api/watchlist', (req, res) => {
-  db.all(`SELECT * FROM watchlist ORDER BY dateAdded DESC`, [], (err, rows) => {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json(rows);
-  });
-});
-
-app.delete('/api/watchlist/:id', (req, res) => {
-  db.run(`DELETE FROM watchlist WHERE id = ?`, [req.params.id], function (err) {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json({ success: true });
-  });
-});
-
-app.post('/api/watchlist-to-movies/:id', async (req, res) => {
-  const { rating, notes } = req.body;
-  db.get(`SELECT * FROM watchlist WHERE id = ?`, [req.params.id], (err, m) => {
-    if (err || !m) return res.status(404).json({ error: 'Movie not found' });
     db.run(
-      `INSERT INTO movies (title, imdbId, posterUrl, director, mainCharacter, genres, plot, year, imdbRating, runtime, rating, userNotes)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [m.title, m.imdbId, m.posterUrl, m.director, m.mainCharacter, m.genres, m.plot, m.year, m.imdbRating, m.runtime, rating, notes],
-      function (err) {
-        if (err) return res.status(500).json({ error: err.message });
-        db.run(`DELETE FROM watchlist WHERE id = ?`, [req.params.id], (err) => {
-          if (err) return res.status(500).json({ error: err.message });
-          res.json({ success: true });
-        });
+      'INSERT INTO users (username, email, password) VALUES (?, ?, ?)',
+      [username, email, hashedPassword],
+      function(err) {
+        if (err) {
+          if (err.message.includes('UNIQUE constraint failed')) {
+            return res.status(400).json({ error: 'Email or username already exists' });
+          }
+          return res.status(500).json({ error: 'Signup failed' });
+        }
+
+        req.session.userId = this.lastID;
+        req.session.username = username;
+        res.json({ success: true, message: 'Account created!' });
       }
     );
-  });
-});
-
-// YouTube trailer
-app.get('/api/trailer/:query', async (req, res) => {
-  try {
-    const results = await search(req.params.query + ' official trailer');
-    if (results && results.videos && results.videos.length > 0) {
-      const video = results.videos[0];
-      res.json({ videoId: video.videoId, title: video.title, url: video.url });
-    } else {
-      res.status(404).json({ error: 'Trailer not found' });
-    }
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Signup error' });
   }
 });
 
-// Search for movies (autocomplete)
-app.get('/api/search/:query', async (req, res) => {
+// Sign In
+app.post('/auth/signin', (req, res) => {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    return res.status(400).json({ error: 'Email and password required' });
+  }
+
+  db.get('SELECT * FROM users WHERE email = ?', [email], async (err, user) => {
+    if (err || !user) {
+      return res.status(400).json({ error: 'Invalid email or password' });
+    }
+
+    try {
+      const validPassword = await bcrypt.compare(password, user.password);
+      
+      if (!validPassword) {
+        return res.status(400).json({ error: 'Invalid email or password' });
+      }
+
+      req.session.userId = user.id;
+req.session.username = user.username;
+res.json({ 
+  success: true, 
+  message: 'Logged in!', 
+  username: user.username,
+  userId: user.id 
+});
+    } catch (error) {
+      res.status(500).json({ error: 'Login error' });
+    }
+  });
+});
+
+// Check Auth Status
+app.get('/auth/status', (req, res) => {
+  if (req.session.userId) {
+    res.json({ 
+      authenticated: true, 
+      username: req.session.username,
+      userId: req.session.userId 
+    });
+  } else {
+    res.json({ authenticated: false });
+  }
+});
+
+// Logout
+app.post('/auth/logout', (req, res) => {
+  req.session.destroy();
+  res.json({ success: true });
+});
+
+// Middleware to check authentication
+const requireAuth = (req, res, next) => {
+  if (!req.session.userId) {
+    return res.status(401).json({ error: 'Not authenticated' });
+  }
+  next();
+};
+
+// ===== MOVIES ROUTES =====
+
+// Get all movies for user
+app.get('/api/movies', requireAuth, (req, res) => {
+  db.all(
+    'SELECT * FROM movies WHERE user_id = ? ORDER BY created_at DESC',
+    [req.session.userId],
+    (err, rows) => {
+      if (err) {
+        res.status(500).json({ error: err.message });
+      } else {
+        res.json(rows || []);
+      }
+    }
+  );
+});
+
+// Add movie
+app.post('/api/movies', requireAuth, async (req, res) => {
+  const { movieName, rating, notes } = req.body;
+
   try {
-    const query = req.params.query;
-    const response = await axios.get('https://www.omdbapi.com/', {
-      params: {
-        apikey: OMDB_API_KEY,
-        s: query,
-        type: 'movie',
-      },
+    const response = await axios.get(`http://www.omdbapi.com/`, {
+      params: { apikey: OMDB_API_KEY, t: movieName, type: 'movie' }
+    });
+
+    if (response.data.Response === 'False') {
+      return res.status(404).json({ error: 'Movie not found' });
+    }
+
+    const movie = response.data;
+    db.run(
+      `INSERT INTO movies 
+       (user_id, title, genres, director, mainCharacter, year, imdbRating, runtime, posterUrl, plot, rating, userNotes) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        req.session.userId,
+        movie.Title,
+        movie.Genre,
+        movie.Director,
+        movie.Actors,
+        movie.Year,
+        movie.imdbRating,
+        movie.Runtime,
+        movie.Poster,
+        movie.Plot,
+        rating,
+        notes
+      ],
+      (err) => {
+        if (err) {
+          res.status(500).json({ error: err.message });
+        } else {
+          res.json({ success: true });
+        }
+      }
+    );
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to add movie' });
+  }
+});
+
+// Update movie
+app.put('/api/movies/:id', requireAuth, (req, res) => {
+  const { rating, userNotes } = req.body;
+  const movieId = req.params.id;
+
+  db.run(
+    'UPDATE movies SET rating = ?, userNotes = ? WHERE id = ? AND user_id = ?',
+    [rating, userNotes, movieId, req.session.userId],
+    (err) => {
+      if (err) {
+        res.status(500).json({ error: err.message });
+      } else {
+        res.json({ success: true });
+      }
+    }
+  );
+});
+
+// Delete movie
+app.delete('/api/movies/:id', requireAuth, (req, res) => {
+  const movieId = req.params.id;
+
+  db.run(
+    'DELETE FROM movies WHERE id = ? AND user_id = ?',
+    [movieId, req.session.userId],
+    (err) => {
+      if (err) {
+        res.status(500).json({ error: err.message });
+      } else {
+        res.json({ success: true });
+      }
+    }
+  );
+});
+
+// ===== WATCHLIST ROUTES =====
+
+// Get watchlist
+app.get('/api/watchlist', requireAuth, (req, res) => {
+  db.all(
+    'SELECT * FROM watchlist WHERE user_id = ? ORDER BY created_at DESC',
+    [req.session.userId],
+    (err, rows) => {
+      if (err) {
+        res.status(500).json({ error: err.message });
+      } else {
+        res.json(rows || []);
+      }
+    }
+  );
+});
+
+// Add to watchlist
+app.post('/api/watchlist', requireAuth, async (req, res) => {
+  const { movieName } = req.body;
+
+  try {
+    const response = await axios.get(`http://www.omdbapi.com/`, {
+      params: { apikey: OMDB_API_KEY, t: movieName, type: 'movie' }
+    });
+
+    if (response.data.Response === 'False') {
+      return res.status(404).json({ error: 'Movie not found' });
+    }
+
+    const movie = response.data;
+    db.run(
+      `INSERT INTO watchlist 
+       (user_id, title, genres, director, mainCharacter, year, imdbRating, runtime, posterUrl, plot) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        req.session.userId,
+        movie.Title,
+        movie.Genre,
+        movie.Director,
+        movie.Actors,
+        movie.Year,
+        movie.imdbRating,
+        movie.Runtime,
+        movie.Poster,
+        movie.Plot
+      ],
+      (err) => {
+        if (err) {
+          res.status(500).json({ error: err.message });
+        } else {
+          res.json({ success: true });
+        }
+      }
+    );
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to add to watchlist' });
+  }
+});
+
+// Remove from watchlist
+app.delete('/api/watchlist/:id', requireAuth, (req, res) => {
+  const watchlistId = req.params.id;
+
+  db.run(
+    'DELETE FROM watchlist WHERE id = ? AND user_id = ?',
+    [watchlistId, req.session.userId],
+    (err) => {
+      if (err) {
+        res.status(500).json({ error: err.message });
+      } else {
+        res.json({ success: true });
+      }
+    }
+  );
+});
+
+// Move from watchlist to movies
+app.post('/api/watchlist-to-movies/:id', requireAuth, async (req, res) => {
+  const { rating, notes } = req.body;
+  const watchlistId = req.params.id;
+
+  db.get(
+    'SELECT * FROM watchlist WHERE id = ? AND user_id = ?',
+    [watchlistId, req.session.userId],
+    (err, watchlistMovie) => {
+      if (err || !watchlistMovie) {
+        return res.status(500).json({ error: 'Movie not found' });
+      }
+
+      db.run(
+        `INSERT INTO movies 
+         (user_id, title, genres, director, mainCharacter, year, imdbRating, runtime, posterUrl, plot, rating, userNotes) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          req.session.userId,
+          watchlistMovie.title,
+          watchlistMovie.genres,
+          watchlistMovie.director,
+          watchlistMovie.mainCharacter,
+          watchlistMovie.year,
+          watchlistMovie.imdbRating,
+          watchlistMovie.runtime,
+          watchlistMovie.posterUrl,
+          watchlistMovie.plot,
+          rating,
+          notes
+        ],
+        (err) => {
+          if (err) {
+            return res.status(500).json({ error: err.message });
+          }
+
+          db.run(
+            'DELETE FROM watchlist WHERE id = ? AND user_id = ?',
+            [watchlistId, req.session.userId],
+            (err) => {
+              if (err) {
+                res.status(500).json({ error: err.message });
+              } else {
+                res.json({ success: true });
+              }
+            }
+          );
+        }
+      );
+    }
+  );
+});
+
+// ===== SEARCH & TRAILER =====
+
+// Search movies
+app.get('/api/search/:query', requireAuth, async (req, res) => {
+  const query = req.params.query;
+
+  try {
+    const response = await axios.get(`http://www.omdbapi.com/`, {
+      params: { apikey: OMDB_API_KEY, s: query, type: 'movie' }
     });
 
     if (response.data.Response === 'False') {
       return res.json({ results: [] });
     }
 
-    const results = response.data.Search.slice(0, 8).map(movie => ({
+    const results = response.data.Search.slice(0, 5).map(movie => ({
       title: movie.Title,
       year: movie.Year,
-      imdbId: movie.imdbID,
-      poster: movie.Poster !== 'N/A' ? movie.Poster : null,
+      poster: movie.Poster
     }));
 
     res.json({ results });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Search failed' });
   }
 });
 
-app.listen(3000, () => console.log('Server running on http://localhost:3000'));
+// Get trailer
+app.get('/api/trailer/:movieTitle', requireAuth, async (req, res) => {
+  try {
+    const search = require('yt-search');
+    const results = await search(`${req.params.movieTitle} trailer`);
+
+    if (results.videos.length > 0) {
+      const videoId = results.videos[0].videoId;
+      res.json({ videoId });
+    } else {
+      res.json({ videoId: null });
+    }
+  } catch (error) {
+    res.json({ videoId: null });
+  }
+});
+
+// ===== START SERVER =====
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`🎬 Movie Tracker Server running on http://localhost:${PORT}`);
+});

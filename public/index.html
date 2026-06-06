@@ -7,206 +7,252 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <!-- PASSWORD MODAL -->
-  <div class="modal" id="passwordModal" style="display: flex;">
-    <div class="modal-content" style="max-width: 400px;">
-      <div class="modal-header">
-        <h2 class="modal-title">🔐 Enter Password</h2>
-      </div>
-      <div class="modal-body" style="padding: 30px;">
-        <input 
-          type="password" 
-          id="passwordInput" 
-          placeholder="Enter password..." 
-          style="width: 100%; padding: 12px; background: #0a0e27; color: white; border: 2px solid #00d9ff; border-radius: 8px; margin-bottom: 20px; font-size: 1em;"
-          onkeypress="if(event.key==='Enter') checkPassword()"
-        >
-        <button onclick="checkPassword()" style="width: 100%; padding: 12px; background: #ff006e; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 700;">Enter</button>
-      </div>
-    </div>
-  </div>
-
-  <div class="container">
-    <h1>🎬 MY MOVIES</h1>
-    <p class="tagline">Track, Rate & Review Your Favorite Films</p>
-    
-    <div style="display: flex; gap: 15px; justify-content: center; margin-bottom: 30px; flex-wrap: wrap;">
-      <button onclick="showSection('movies')" id="moviesBtn" class="section-btn active">🎬 My Movies</button>
-      <button onclick="showSection('watchlist')" id="watchlistBtn" class="section-btn">📋 Watch Later</button>
-    </div>
-
-    <div id="moviesSection">
-      <div class="add-movie-section">
-        <div class="search-wrapper">
-          <input 
-            type="text" 
-            id="movieInput" 
-            placeholder="Search for a movie..."
-            autocomplete="off"
-            oninput="searchMovies('movieInput', 'moviesSuggestions')"
-            onkeypress="if(event.key==='Enter') addMovie()"
-          >
-          <div id="moviesSuggestions" class="suggestions-box"></div>
-        </div>
-        <button onclick="addMovie()">+ Add Movie</button>
-      </div>
-
-      <div class="filter-section">
-        <button onclick="filterMovies('all')" class="filter-btn active">All Movies</button>
-        <button onclick="filterMovies('Action')" class="filter-btn">🔥 Action</button>
-        <button onclick="filterMovies('Sci-Fi')" class="filter-btn">🚀 Sci-Fi</button>
-        <button onclick="filterMovies('Drama')" class="filter-btn">🎭 Drama</button>
-        <button onclick="filterMovies('Comedy')" class="filter-btn">😂 Comedy</button>
-        <button onclick="filterMovies('Horror')" class="filter-btn">👻 Horror</button>
-        <button onclick="filterMovies('Thriller')" class="filter-btn">😱 Thriller</button>
-        <button onclick="filterMovies('Romance')" class="filter-btn">💕 Romance</button>
-      </div>
-
-      <div class="movies-grid" id="moviesContainer"></div>
-    </div>
-
-    <div id="watchlistSection" style="display: none;">
-      <div class="add-movie-section">
-        <div class="search-wrapper">
-          <input 
-            type="text" 
-            id="watchlistInput" 
-            placeholder="Add a movie to watch later..."
-            autocomplete="off"
-            oninput="searchMovies('watchlistInput', 'watchlistSuggestions')"
-            onkeypress="if(event.key==='Enter') addToWatchlist()"
-          >
-          <div id="watchlistSuggestions" class="suggestions-box"></div>
-        </div>
-        <button onclick="addToWatchlist()">+ Add to Watch Later</button>
-      </div>
-
-      <div class="movies-grid" id="watchlistContainer"></div>
-    </div>
-  </div>
-
-  <!-- Alert Modal -->
-  <div class="modal" id="alertModal">
-    <div class="modal-content" style="max-width: 400px;">
-      <div class="modal-header">
-        <h2 class="modal-title">Alert</h2>
-        <button class="close-btn" onclick="closeAlert()">&times;</button>
-      </div>
-      <div class="modal-body" style="padding: 30px;">
-        <p id="alertMessage" style="color: #aaa; font-size: 1.05em; line-height: 1.5; margin-bottom: 30px;"></p>
-        <button onclick="closeAlert()" style="width: 100%; padding: 12px; background: #00d9ff; color: #0a0e27; border: none; border-radius: 8px; cursor: pointer; font-weight: 700; font-size: 1em;">OK</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Confirmation Modal -->
-  <div class="modal" id="confirmModal">
-    <div class="modal-content" style="max-width: 400px;">
-      <div class="modal-header">
-        <h2 class="modal-title">Confirm</h2>
-        <button class="close-btn" onclick="confirmNo()">&times;</button>
-      </div>
-      <div class="modal-body" style="padding: 30px;">
-        <p id="confirmMessage" style="color: #aaa; font-size: 1.05em; line-height: 1.5; margin-bottom: 30px;"></p>
-        <div style="display: flex; gap: 15px;">
-          <button onclick="confirmNo()" style="flex: 1; padding: 12px; background: #666; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 700;">Cancel</button>
-          <button onclick="confirmYes()" style="flex: 1; padding: 12px; background: #ff006e; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 700;">Delete</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Rating Modal -->
-  <div class="modal" id="ratingModal">
-    <div class="modal-content" style="max-width: 500px;">
-      <div class="modal-header">
-        <h2 class="modal-title">Rate & Review</h2>
-        <button class="close-btn" onclick="closeRatingModal()">&times;</button>
-      </div>
-      <div class="modal-body" style="padding: 30px;">
-        <h3 style="color: #00d9ff; margin-bottom: 20px; text-align: center;">Select Your Rating</h3>
+  <!-- LOGIN/SIGNUP PAGE -->
+  <div id="authPage" style="display: flex;">
+    <div style="width: 100%; min-height: 100vh; background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%); display: flex; justify-content: center; align-items: center;">
+      <div style="background: rgba(10, 14, 39, 0.8); border: 2px solid #00d9ff; border-radius: 15px; padding: 50px; max-width: 400px; width: 90%; backdrop-filter: blur(10px);">
         
-        <div style="display: flex; justify-content: center; gap: 15px; margin-bottom: 40px;">
-          <div class="star-rating" id="starRating">
-            <span class="star" onclick="selectRating(1)" data-rating="1">⭐</span>
-            <span class="star" onclick="selectRating(2)" data-rating="2">⭐</span>
-            <span class="star" onclick="selectRating(3)" data-rating="3">⭐</span>
-            <span class="star" onclick="selectRating(4)" data-rating="4">⭐</span>
-            <span class="star" onclick="selectRating(5)" data-rating="5">⭐</span>
-          </div>
+        <!-- Login Form -->
+        <div id="loginForm">
+          <h1 style="color: #00d9ff; text-align: center; margin-bottom: 30px;">🎬 Movie Tracker</h1>
+          <p style="color: #aaa; text-align: center; margin-bottom: 30px;">Track, Rate & Review Your Favorite Films</p>
+          
+          <input 
+            type="email" 
+            id="loginEmail" 
+            placeholder="Email" 
+            style="width: 100%; padding: 12px; margin-bottom: 15px; background: #0a0e27; color: white; border: 2px solid #00d9ff; border-radius: 8px; font-size: 1em;"
+          >
+          <input 
+            type="password" 
+            id="loginPassword" 
+            placeholder="Password" 
+            style="width: 100%; padding: 12px; margin-bottom: 20px; background: #0a0e27; color: white; border: 2px solid #00d9ff; border-radius: 8px; font-size: 1em;"
+          >
+          <button onclick="handleLogin()" style="width: 100%; padding: 12px; background: #ff006e; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 700; font-size: 1em; margin-bottom: 15px;">Sign In</button>
+          
+          <p style="color: #aaa; text-align: center;">Don't have an account? <span onclick="toggleAuth()" style="color: #00d9ff; cursor: pointer; text-decoration: underline;">Sign Up</span></p>
         </div>
 
-        <div id="selectedRatingDisplay" style="text-align: center; color: #00d9ff; font-size: 1.2em; font-weight: bold; margin-bottom: 30px;">Select a rating</div>
-
-        <h3 style="color: #00d9ff; margin-bottom: 10px;">Your Notes (Optional)</h3>
-        <textarea 
-          id="notesInput" 
-          placeholder="Write your thoughts about this movie..." 
-          style="width: 100%; height: 120px; padding: 15px; background: #0a0e27; color: white; border: 2px solid #00d9ff; border-radius: 8px; font-family: inherit; font-size: 0.95em; resize: vertical;"
-        ></textarea>
-
-        <div style="display: flex; gap: 15px; margin-top: 30px;">
-          <button onclick="closeRatingModal()" style="flex: 1; padding: 12px; background: #666; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 700;">Cancel</button>
-          <button onclick="submitRating()" style="flex: 1; padding: 12px; background: #ff006e; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 700;">Confirm</button>
+        <!-- Signup Form -->
+        <div id="signupForm" style="display: none;">
+          <h1 style="color: #00d9ff; text-align: center; margin-bottom: 30px;">🎬 Create Account</h1>
+          
+          <input 
+            type="text" 
+            id="signupUsername" 
+            placeholder="Username" 
+            style="width: 100%; padding: 12px; margin-bottom: 15px; background: #0a0e27; color: white; border: 2px solid #00d9ff; border-radius: 8px; font-size: 1em;"
+          >
+          <input 
+            type="email" 
+            id="signupEmail" 
+            placeholder="Email" 
+            style="width: 100%; padding: 12px; margin-bottom: 15px; background: #0a0e27; color: white; border: 2px solid #00d9ff; border-radius: 8px; font-size: 1em;"
+          >
+          <input 
+            type="password" 
+            id="signupPassword" 
+            placeholder="Password (min 6 characters)" 
+            style="width: 100%; padding: 12px; margin-bottom: 20px; background: #0a0e27; color: white; border: 2px solid #00d9ff; border-radius: 8px; font-size: 1em;"
+          >
+          <button onclick="handleSignup()" style="width: 100%; padding: 12px; background: #00d9ff; color: #0a0e27; border: none; border-radius: 8px; cursor: pointer; font-weight: 700; font-size: 1em; margin-bottom: 15px;">Create Account</button>
+          
+          <p style="color: #aaa; text-align: center;">Already have an account? <span onclick="toggleAuth()" style="color: #ff006e; cursor: pointer; text-decoration: underline;">Sign In</span></p>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Movie Details Modal -->
-  <div class="modal" id="movieModal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h2 class="modal-title" id="modalTitle">Movie Title</h2>
-        <button class="close-btn" onclick="closeModal()">&times;</button>
+  <!-- MAIN APP PAGE -->
+  <div id="appPage" style="display: none;">
+    <div class="container">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <div>
+          <h1>🎬 MY MOVIES</h1>
+          <p class="tagline">Track, Rate & Review Your Favorite Films</p>
+        </div>
+        <button onclick="handleLogout()" style="padding: 10px 20px; background: #ff006e; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 700;">Logout</button>
       </div>
-      <div class="modal-body">
-        <div id="trailerContainer"></div>
+      
+      <div style="display: flex; gap: 15px; justify-content: center; margin-bottom: 30px; flex-wrap: wrap;">
+        <button onclick="showSection('movies')" id="moviesBtn" class="section-btn active">🎬 My Movies</button>
+        <button onclick="showSection('watchlist')" id="watchlistBtn" class="section-btn">📋 Watch Later</button>
+      </div>
 
-        <div class="movie-details">
-          <img id="modalPoster" src="" alt="Poster" class="poster-large">
-          <div class="details-text">
-            <div class="details-row">
-              <span class="details-label">Genre:</span>
-              <span class="details-value" id="modalGenre">-</span>
-            </div>
-            <div class="details-row">
-              <span class="details-label">Director:</span>
-              <span class="details-value" id="modalDirector">-</span>
-            </div>
-            <div class="details-row">
-              <span class="details-label">Main Actor:</span>
-              <span class="details-value" id="modalActor">-</span>
-            </div>
-            <div class="details-row">
-              <span class="details-label">Year:</span>
-              <span class="details-value" id="modalYear">-</span>
-            </div>
-            <div class="details-row">
-              <span class="details-label">IMDb Rating:</span>
-              <span class="details-value" id="modalIMDbRating">-</span>
-            </div>
-            <div class="details-row">
-              <span class="details-label">Runtime:</span>
-              <span class="details-value" id="modalRuntime">-</span>
-            </div>
+      <div id="moviesSection">
+        <div class="add-movie-section">
+          <div class="search-wrapper">
+            <input 
+              type="text" 
+              id="movieInput" 
+              placeholder="Search for a movie..."
+              autocomplete="off"
+              oninput="searchMovies('movieInput', 'moviesSuggestions')"
+              onkeypress="if(event.key==='Enter') addMovie()"
+            >
+            <div id="moviesSuggestions" class="suggestions-box"></div>
+          </div>
+          <button onclick="addMovie()">+ Add Movie</button>
+        </div>
 
-            <div class="user-rating">
-              <h4>Your Rating</h4>
-              <div class="user-stars" id="modalUserRating">⭐ ⭐ ⭐</div>
-              <div class="user-notes" id="modalUserNotes">No notes added</div>
-            </div>
+        <div class="filter-section">
+          <button onclick="filterMovies('all')" class="filter-btn active">All Movies</button>
+          <button onclick="filterMovies('Action')" class="filter-btn">🔥 Action</button>
+          <button onclick="filterMovies('Sci-Fi')" class="filter-btn">🚀 Sci-Fi</button>
+          <button onclick="filterMovies('Drama')" class="filter-btn">🎭 Drama</button>
+          <button onclick="filterMovies('Comedy')" class="filter-btn">😂 Comedy</button>
+          <button onclick="filterMovies('Horror')" class="filter-btn">👻 Horror</button>
+          <button onclick="filterMovies('Thriller')" class="filter-btn">😱 Thriller</button>
+          <button onclick="filterMovies('Romance')" class="filter-btn">💕 Romance</button>
+        </div>
+
+        <div class="movies-grid" id="moviesContainer"></div>
+      </div>
+
+      <div id="watchlistSection" style="display: none;">
+        <div class="add-movie-section">
+          <div class="search-wrapper">
+            <input 
+              type="text" 
+              id="watchlistInput" 
+              placeholder="Add a movie to watch later..."
+              autocomplete="off"
+              oninput="searchMovies('watchlistInput', 'watchlistSuggestions')"
+              onkeypress="if(event.key==='Enter') addToWatchlist()"
+            >
+            <div id="watchlistSuggestions" class="suggestions-box"></div>
+          </div>
+          <button onclick="addToWatchlist()">+ Add to Watch Later</button>
+        </div>
+
+        <div class="movies-grid" id="watchlistContainer"></div>
+      </div>
+    </div>
+
+    <!-- Alert Modal -->
+    <div class="modal" id="alertModal">
+      <div class="modal-content" style="max-width: 400px;">
+        <div class="modal-header">
+          <h2 class="modal-title">Alert</h2>
+          <button class="close-btn" onclick="closeAlert()">&times;</button>
+        </div>
+        <div class="modal-body" style="padding: 30px;">
+          <p id="alertMessage" style="color: #aaa; font-size: 1.05em; line-height: 1.5; margin-bottom: 30px;"></p>
+          <button onclick="closeAlert()" style="width: 100%; padding: 12px; background: #00d9ff; color: #0a0e27; border: none; border-radius: 8px; cursor: pointer; font-weight: 700; font-size: 1em;">OK</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Confirmation Modal -->
+    <div class="modal" id="confirmModal">
+      <div class="modal-content" style="max-width: 400px;">
+        <div class="modal-header">
+          <h2 class="modal-title">Confirm</h2>
+          <button class="close-btn" onclick="confirmNo()">&times;</button>
+        </div>
+        <div class="modal-body" style="padding: 30px;">
+          <p id="confirmMessage" style="color: #aaa; font-size: 1.05em; line-height: 1.5; margin-bottom: 30px;"></p>
+          <div style="display: flex; gap: 15px;">
+            <button onclick="confirmNo()" style="flex: 1; padding: 12px; background: #666; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 700;">Cancel</button>
+            <button onclick="confirmYes()" style="flex: 1; padding: 12px; background: #ff006e; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 700;">Delete</button>
           </div>
         </div>
+      </div>
+    </div>
 
-        <div class="plot-section">
-          <h3>Plot Summary</h3>
-          <p id="modalPlot">Loading plot...</p>
+    <!-- Rating Modal -->
+    <div class="modal" id="ratingModal">
+      <div class="modal-content" style="max-width: 500px;">
+        <div class="modal-header">
+          <h2 class="modal-title">Rate & Review</h2>
+          <button class="close-btn" onclick="closeRatingModal()">&times;</button>
         </div>
+        <div class="modal-body" style="padding: 30px;">
+          <h3 style="color: #00d9ff; margin-bottom: 20px; text-align: center;">Select Your Rating</h3>
+          
+          <div style="display: flex; justify-content: center; gap: 15px; margin-bottom: 40px;">
+            <div class="star-rating" id="starRating">
+              <span class="star" onclick="selectRating(1)" data-rating="1">⭐</span>
+              <span class="star" onclick="selectRating(2)" data-rating="2">⭐</span>
+              <span class="star" onclick="selectRating(3)" data-rating="3">⭐</span>
+              <span class="star" onclick="selectRating(4)" data-rating="4">⭐</span>
+              <span class="star" onclick="selectRating(5)" data-rating="5">⭐</span>
+            </div>
+          </div>
 
-        <div class="modal-actions">
-          <button class="edit-btn" onclick="editMovieFromModal()">Edit Rating & Notes</button>
-          <button class="delete-modal-btn" onclick="deleteMovieFromModal()">Delete</button>
+          <div id="selectedRatingDisplay" style="text-align: center; color: #00d9ff; font-size: 1.2em; font-weight: bold; margin-bottom: 30px;">Select a rating</div>
+
+          <h3 style="color: #00d9ff; margin-bottom: 10px;">Your Notes (Optional)</h3>
+          <textarea 
+            id="notesInput" 
+            placeholder="Write your thoughts about this movie..." 
+            style="width: 100%; height: 120px; padding: 15px; background: #0a0e27; color: white; border: 2px solid #00d9ff; border-radius: 8px; font-family: inherit; font-size: 0.95em; resize: vertical;"
+          ></textarea>
+
+          <div style="display: flex; gap: 15px; margin-top: 30px;">
+            <button onclick="closeRatingModal()" style="flex: 1; padding: 12px; background: #666; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 700;">Cancel</button>
+            <button onclick="submitRating()" style="flex: 1; padding: 12px; background: #ff006e; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 700;">Confirm</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Movie Details Modal -->
+    <div class="modal" id="movieModal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 class="modal-title" id="modalTitle">Movie Title</h2>
+          <button class="close-btn" onclick="closeModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div id="trailerContainer"></div>
+
+          <div class="movie-details">
+            <img id="modalPoster" src="" alt="Poster" class="poster-large">
+            <div class="details-text">
+              <div class="details-row">
+                <span class="details-label">Genre:</span>
+                <span class="details-value" id="modalGenre">-</span>
+              </div>
+              <div class="details-row">
+                <span class="details-label">Director:</span>
+                <span class="details-value" id="modalDirector">-</span>
+              </div>
+              <div class="details-row">
+                <span class="details-label">Main Actor:</span>
+                <span class="details-value" id="modalActor">-</span>
+              </div>
+              <div class="details-row">
+                <span class="details-label">Year:</span>
+                <span class="details-value" id="modalYear">-</span>
+              </div>
+              <div class="details-row">
+                <span class="details-label">IMDb Rating:</span>
+                <span class="details-value" id="modalIMDbRating">-</span>
+              </div>
+              <div class="details-row">
+                <span class="details-label">Runtime:</span>
+                <span class="details-value" id="modalRuntime">-</span>
+              </div>
+
+              <div class="user-rating">
+                <h4>Your Rating</h4>
+                <div class="user-stars" id="modalUserRating">⭐ ⭐ ⭐</div>
+                <div class="user-notes" id="modalUserNotes">No notes added</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="plot-section">
+            <h3>Plot Summary</h3>
+            <p id="modalPlot">Loading plot...</p>
+          </div>
+
+          <div class="modal-actions">
+            <button class="edit-btn" onclick="editMovieFromModal()">Edit Rating & Notes</button>
+            <button class="delete-modal-btn" onclick="deleteMovieFromModal()">Delete</button>
+          </div>
         </div>
       </div>
     </div>

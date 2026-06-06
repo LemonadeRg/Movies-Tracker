@@ -1,26 +1,5 @@
 console.log('✅ app.js loaded successfully');
-// ===== PASSWORD PROTECTION =====
-const APP_PASSWORD = 'riyad123';  // Change this to your password!
 
-window.addEventListener('load', function() {
-  const isAuthenticated = sessionStorage.getItem('appAuthenticated');
-  if (!isAuthenticated) {
-    document.getElementById('passwordModal').style.display = 'flex';
-    document.body.style.overflow = 'hidden';
-  }
-});
-
-function checkPassword() {
-  const password = document.getElementById('passwordInput').value;
-  if (password === APP_PASSWORD) {
-    sessionStorage.setItem('appAuthenticated', 'true');
-    document.getElementById('passwordModal').style.display = 'none';
-    document.body.style.overflow = 'auto';
-  } else {
-    showAlert('❌ Wrong password!');
-    document.getElementById('passwordInput').value = '';
-  }
-}
 let allMovies = [];
 let allWatchlist = [];
 let currentFilter = 'all';
@@ -28,8 +7,124 @@ let selectedMovieId = null;
 let ratingCallback = null;
 let confirmCallback = null;
 let selectedRating = 0;
+let currentUserId = null;
 
-// ===== ALERT & CONFIRM MODALS =====
+// ===== CHECK AUTHENTICATION =====
+window.addEventListener('load', async function() {
+  const response = await fetch('/auth/status');
+  const data = await response.json();
+  
+  if (data.authenticated) {
+    currentUserId = data.userId;
+    showApp();
+    loadMovies();
+  } else {
+    showAuth();
+  }
+});
+
+function showAuth() {
+  document.getElementById('authPage').style.display = 'flex';
+  document.getElementById('appPage').style.display = 'none';
+}
+
+function showApp() {
+  document.getElementById('authPage').style.display = 'none';
+  document.getElementById('appPage').style.display = 'block';
+}
+
+function toggleAuth() {
+  document.getElementById('loginForm').style.display = 
+    document.getElementById('loginForm').style.display === 'none' ? 'block' : 'none';
+  document.getElementById('signupForm').style.display = 
+    document.getElementById('signupForm').style.display === 'none' ? 'block' : 'none';
+}
+
+// ===== SIGN UP =====
+async function handleSignup() {
+  const username = document.getElementById('signupUsername').value.trim();
+  const email = document.getElementById('signupEmail').value.trim();
+  const password = document.getElementById('signupPassword').value;
+
+  if (!username || !email || !password) {
+    showAlert('❌ All fields required!');
+    return;
+  }
+
+  if (password.length < 6) {
+    showAlert('❌ Password must be at least 6 characters!');
+    return;
+  }
+
+  try {
+    const response = await fetch('/auth/signup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, email, password })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      showAlert('❌ ' + data.error);
+      return;
+    }
+
+    currentUserId = data.userId;
+    showAlert('✅ Account created! Welcome ' + username);
+    showApp();
+    loadMovies();
+  } catch (error) {
+    showAlert('❌ Signup failed: ' + error.message);
+  }
+}
+
+// ===== SIGN IN =====
+async function handleLogin() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+
+  if (!email || !password) {
+    showAlert('❌ Email and password required!');
+    return;
+  }
+
+  try {
+    const response = await fetch('/auth/signin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      showAlert('❌ ' + data.error);
+      return;
+    }
+
+    currentUserId = data.userId;
+showAlert('✅ Welcome back, ' + data.username);
+showApp();
+loadMovies();
+  } catch (error) {
+    showAlert('❌ Login failed: ' + error.message);
+  }
+}
+
+// ===== LOGOUT =====
+async function handleLogout() {
+  await fetch('/auth/logout', { method: 'POST' });
+  currentUserId = null;
+  document.getElementById('loginEmail').value = '';
+  document.getElementById('loginPassword').value = '';
+  document.getElementById('signupUsername').value = '';
+  document.getElementById('signupEmail').value = '';
+  document.getElementById('signupPassword').value = '';
+  showAuth();
+}
+
+// ===== ALERT & CONFIRM =====
 function showAlert(message) {
   document.getElementById('alertMessage').textContent = message;
   document.getElementById('alertModal').classList.add('active');
@@ -181,7 +276,7 @@ function filterMovies(genre) {
   }
 }
 
-// ===== MOVIE DETAILS MODAL =====
+// ===== MOVIE DETAILS =====
 async function openMovieDetails(movieId) {
   const movie = allMovies.find(m => m.id === movieId);
   if (!movie) return;
@@ -209,31 +304,18 @@ async function openMovieDetails(movieId) {
     document.getElementById('modalUserNotes').textContent = 'No notes added';
   }
 
-  // Trailer
   const trailerContainer = document.getElementById('trailerContainer');
-  trailerContainer.innerHTML = `
-    <div style="background: #0f1424; padding: 40px; border-radius: 10px; border: 1px solid #00d9ff; text-align: center;">
-      <p style="color: #aaa;">Loading trailer...</p>
-    </div>
-  `;
+  trailerContainer.innerHTML = `<div style="background: #0f1424; padding: 40px; border-radius: 10px; border: 1px solid #00d9ff; text-align: center;"><p style="color: #aaa;">Loading trailer...</p></div>`;
 
   fetch(`/api/trailer/${encodeURIComponent(movie.title)}`)
     .then(r => r.json())
     .then(data => {
       if (data.videoId) {
-        trailerContainer.innerHTML = `
-          <div class="video-container">
-            <iframe src="https://www.youtube.com/embed/${data.videoId}" allowfullscreen></iframe>
-          </div>
-        `;
+        trailerContainer.innerHTML = `<div class="video-container"><iframe src="https://www.youtube.com/embed/${data.videoId}" allowfullscreen></iframe></div>`;
       } else throw new Error();
     })
     .catch(() => {
-      trailerContainer.innerHTML = `
-        <div style="background: #0f1424; padding: 50px 30px; border-radius: 10px; border: 1px solid #ff006e; text-align: center;">
-          <h3 style="color: #ff006e;">🎬 Trailer Not Available</h3>
-        </div>
-      `;
+      trailerContainer.innerHTML = `<div style="background: #0f1424; padding: 50px 30px; border-radius: 10px; border: 1px solid #ff006e; text-align: center;"><h3 style="color: #ff006e;">🎬 Trailer Not Available</h3></div>`;
     });
 
   const modalActions = document.querySelector('.modal-actions');
@@ -253,7 +335,7 @@ function closeModal() {
 function editMovieFromModal() {
   if (!selectedMovieId) return;
   const movie = allMovies.find(m => m.id === selectedMovieId);
-  const newRating = prompt('New rating (1-10):', movie.rating);
+  const newRating = prompt('New rating (1-5):', movie.rating);
   if (newRating) {
     const newNotes = prompt('Update notes:', movie.userNotes || '');
     updateMovie(selectedMovieId, parseInt(newRating), newNotes);
@@ -435,7 +517,7 @@ async function markAsWatched(id) {
   });
 }
 
-// ===== SEARCH/AUTOCOMPLETE =====
+// ===== SEARCH =====
 let searchTimeout;
 
 async function searchMovies(inputId, suggestionsId) {
@@ -533,7 +615,7 @@ function submitRating() {
   const notes = document.getElementById('notesInput').value.trim();
   
   if (ratingCallback) {
-    ratingCallback(selectedRating, notes);  // Keep as 1-5
+    ratingCallback(selectedRating, notes);
   }
   
   closeRatingModal();
@@ -545,6 +627,3 @@ window.addEventListener('click', function(event) {
     closeRatingModal();
   }
 });
-
-// Load movies on startup
-loadMovies();
